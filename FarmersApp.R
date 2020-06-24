@@ -242,7 +242,9 @@ server <- function(input, output,session) {
    #Reactive Data
    plotData <- plotDataR()
    
-
+   #If there is data
+   if(nrow(plotData) > 0){
+   
    #Creating Model
    
    #Setting Up
@@ -464,6 +466,8 @@ server <- function(input, output,session) {
     }
      
     return(myplot)
+     
+   }
   
   })
  
