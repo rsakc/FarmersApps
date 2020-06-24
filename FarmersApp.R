@@ -89,10 +89,10 @@ ui <- fluidPage(
       
       selectInput(inputId = "groupID",
                   label = "Group ID:", 
-                  choices =  c("all", all_groups),
+                  choices =  all_groups,
                   multiple = TRUE,
                   selectize = TRUE,
-                  selected = "all"),
+                  selected = "johnuger"),
       
       uiOutput(outputId = "player_input"),
       
@@ -160,21 +160,11 @@ ui <- fluidPage(
 server <- function(input, output,session) {
   
   #Reactive Data
-  
   plotDataR <- reactive({
     
-    if("all" %in% input$groupID){
-      
-      #Filtering by Crop
-      data <- data.all %>% filter(Crop %in% input$crop2)
-      
-      #Filtering by Nitrate Level
-      data <- data %>% filter(NitrateLevel >= input$sliderN[1],
-                              NitrateLevel <= input$sliderN[2])
-      
-      
-    } else {
-      
+    #Require
+    req(input$limits_in)
+    
       #Filtering by Group ID
       data <- data.all %>% filter(GroupID %in% input$groupID)
       
@@ -182,13 +172,22 @@ server <- function(input, output,session) {
       data <- data %>% filter(!(PlayerID %in% input$playerID))
       
       #Filtering by Crop
-      data <- data.all %>% filter(Crop %in% input$crop2)
+      data <- data %>% filter(Crop %in% input$crop2)
       
       #Filtering by Nitrate Level
       data <- data %>% filter(NitrateLevel >= input$sliderN[1],
                               NitrateLevel <= input$sliderN[2])
       
-    }
+      #Filtering by X Axis Limits
+      if(input$xvar == "TotalWater"){
+        data <- data %>% filter(TotalWater >= input$limits_in[1],
+                                TotalWater <= input$limits_in[2])
+        
+      } else if(input$xvar == "NitrateLevel"){
+        data <- data %>% filter(NitrateLevel >= input$limits_in[1],
+                                NitrateLevel <= input$limits_in[2])
+      }
+      
   })
   
   
@@ -197,8 +196,6 @@ server <- function(input, output,session) {
   #Dynamic Remove Player Input
   output$player_input <- renderUI({
     
-    if(!("all" %in% input$groupID)){
-      
       input_data <- data.all %>% filter(GroupID %in% input$groupID)
       players <- sort(unique(input_data$PlayerID))
       
@@ -208,22 +205,19 @@ server <- function(input, output,session) {
                   multiple = TRUE,
                   selectize = TRUE)
         
-    }
+    
   })
   
   #Dynamic X Axis Limits Input
   output$limits <- renderUI({
-    
-    #Reactive Data
-    plotData <- plotDataR()
-    
+  
     if(input$xvar == "TotalWater"){
       
       sliderInput(inputId = "limits_in",
                   label = "X Axis Limits:",
-                  min = min(plotData$TotalWater),
-                  max = max(plotData$TotalWater),
-                  value = c(min(plotData$TotalWater), max(plotData$TotalWater)))
+                  min = min(data.all$TotalWater),
+                  max = max(data.all$TotalWater),
+                  value = c(min(data.all$TotalWater), max(data.all$TotalWater)))
             
     }
     
@@ -231,12 +225,10 @@ server <- function(input, output,session) {
       
       sliderInput(inputId = "limits_in",
                   label = "X Axis Limits:",
-                  min = min(plotData$NitrateLevel),
-                  max = max(plotData$NitrateLevel),
-                  value = c(min(plotData$NitrateLevel), max(plotData$NitrateLevel)))
+                  min = min(data.all$NitrateLevel),
+                  max = max(data.all$NitrateLevel),
+                  value = c(min(data.all$NitrateLevel), max(data.all$NitrateLevel)))
     }
-    
-
   })
   
   
@@ -246,12 +238,156 @@ server <- function(input, output,session) {
     
    #Require Inputs
    req(input$groupID)
-   req(input$limits_in)
    
    #Reactive Data
    plotData <- plotDataR()
    
 
+   #Creating Model
+   
+   #Setting Up
+   XVariable <- plotData %>% pull(input$xvar)
+   YVariable <- plotData %>% pull(input$yvar)
+   ColorVariable <- plotData %>% pull(input$color)
+   
+   #If model option is NOT none
+   if(input$model != "None"){
+     
+     #Remove Interaction checkbox is selected
+     if(input$interaction == TRUE){
+       
+       #Facet option is none
+       if(input$facets == "None"){
+         
+         #One of the three models below are selected
+         if(input$model %in% c("Linear", "Quadratic", "Cubic")){
+           
+           if(input$model == "Linear"){
+             myModel <- lm(YVariable ~ XVariable + ColorVariable)
+             
+           } else if(input$model == "Quadratic"){
+             myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + ColorVariable)
+             
+             
+           } else if(input$model == "Cubic"){
+             myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + I(XVariable^3) + ColorVariable)
+           }
+           
+           #Smoother model is selected
+         } else if(input$model == "Smoother"){
+           myModel <- ""
+        
+         }
+         
+         #Facet option is NOT none 
+       } else{
+         
+         #Pulling Facet Variable
+         FacetVariable <- plotData %>% pull(input$facets)
+         
+         #One of the three models below are selected
+         if(input$model %in% c("Linear", "Quadratic", "Cubic")){
+           
+           if(input$model == "Linear"){
+             myModel <- lm(YVariable ~ XVariable + ColorVariable + FacetVariable)
+             
+           } else if(input$model == "Quadratic"){
+             myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + ColorVariable + FacetVariable)
+             
+             
+           } else if(input$model == "Cubic"){
+             myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + I(XVariable^3) + ColorVariable + FacetVariable)
+           }
+       
+           
+           #Smoother model is selected
+         } else if(input$model == "Smoother"){
+           myModel <- ""
+       
+         }
+       }
+       
+       #Remove Interaction checkbox it NOT selected
+     } else{
+       
+       #Facet option is none
+       if(input$facets == "None"){
+         
+         #One of the three models below are selected
+         if(input$model %in% c("Linear", "Quadratic", "Cubic")){
+           
+           if(input$model == "Linear"){
+             myModel <- lm(YVariable ~ (XVariable + ColorVariable + XVariable*ColorVariable))
+             
+           } else if(input$model == "Quadratic"){
+             
+             myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + ColorVariable + XVariable*ColorVariable +
+                             I(XVariable^2) * ColorVariable)
+             #myModel <- lm(YVariable ~ (XVariable + I(XVariable^2) + ColorVariable)^2)
+             
+             
+           } else if(input$model == "Cubic"){
+             myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + I(XVariable^3) + ColorVariable +
+                             XVariable*ColorVariable +  I(XVariable^2)*ColorVariable +
+                             I(XVariable^3)*ColorVariable)
+           }
+     
+           
+           #Smoother model is selected
+         } else if(input$model == "Smoother"){
+           myModel <- ""
+     
+         }
+         
+         #Facet option is NOT none 
+       } else{
+         
+         #Pulling Facet Variable
+         FacetVariable <- plotData %>% pull(input$facets)
+         
+         #One of the three models below are selected
+         if(input$model %in% c("Linear", "Quadratic", "Cubic")){
+           
+           if(input$model == "Linear"){
+             myModel <- lm(YVariable ~ XVariable + ColorVariable + FacetVariable + XVariable*ColorVariable +
+                             XVariable*FacetVariable + ColorVariable*FacetVariable)
+             
+           } else if(input$model == "Quadratic"){
+             myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + ColorVariable + FacetVariable +
+                             XVariable*ColorVariable + XVariable*FacetVariable +
+                             I(XVariable^2)*ColorVariable + I(XVariable^2)*FacetVariable +
+                             ColorVariable*FacetVariable)
+             
+             
+           } else if(input$model == "Cubic"){
+             myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + I(XVariable^3) + ColorVariable + FacetVariable +
+                             XVariable*ColorVariable + XVariable*FacetVariable +
+                             I(XVariable^2)*ColorVariable + I(XVariable^2)*FacetVariable +
+                             I(XVariable^3)*ColorVariable + I(XVariable^3)*FacetVariable +
+                             ColorVariable*FacetVariable)
+           }
+         
+           
+           #Smoother model is selected
+         } else if(input$model == "Smoother"){
+           myModel <- ""
+          
+         }
+       }
+     }
+     
+     #If model option is none 
+   } else{
+     myModel <- ""
+   
+   }
+ 
+   #Adding predicted values column for Linear/Quadratic/Cubic
+   if(input$model %in% c("Linear", "Quadratic", "Cubic")){
+   plotData <- cbind(plotData, predict(myModel, interval = "confidence"))      
+   }
+   
+   
    #Default Plot
      myplot <- ggplot(data = plotData, aes_string(x = input$xvar, y = input$yvar, color = input$color)) +
        geom_point() +
@@ -262,11 +398,9 @@ server <- function(input, output,session) {
              plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
              legend.title = element_text(size = 18), 
              legend.text = element_text(size = 16), 
-             axis.text.y = element_text(size = 14)) +
-       scale_x_continuous(limits = c(input$limits_in[1], input$limits_in[2]))
-    
-       
-
+             axis.text.y = element_text(size = 14)) 
+      
+  
    #Facet option is selected
    if(input$facets != "None"){
      myplot <- myplot +
@@ -278,35 +412,60 @@ server <- function(input, output,session) {
      
      #Adding Model under certain conditions
      if(input$model != "None"){
+       
+       #If remove interaction checkbox is not selected
+       if(input$interaction == FALSE){
       
-         #Linear
-         if(input$model == "Linear"){
-           myplot <- myplot + 
-             stat_smooth(method = "lm", formula = y ~ x, se = FALSE)
+          #Linear
+          if(input$model == "Linear"){
+             myplot <- myplot + 
+              stat_smooth(method = "lm", formula = y ~ x, se = FALSE)
+              #geom_smooth(x = input$xvar, y = predicted)
            
            #Quadratic
          } else if(input$model == "Quadratic"){
-           myplot <- myplot + 
+           myplot <- myplot +
              stat_smooth(method = "lm", formula = y ~ x + I(x^2), se = FALSE)
            
            #Cubic
          } else if(input$model == "Cubic"){
-           myplot <- myplot + 
+           myplot <- myplot +
              stat_smooth(method = "lm", formula = y ~ x + I(x^2) + I(x^3), se = FALSE)
            
            #Smoother
          } else if(input$model == "Smoother"){
            myplot <- myplot +
              stat_smooth(se = FALSE)
-           
          }
-       }
+      
+      #If remove interaction checkbox is selected   
+       } else{
+        
+           #Linear
+          if(input$model == "Linear"){
+             myplot <- myplot + 
+               geom_line(aes(y = fit), size = 1)
+          #Quadratic
+        } else if(input$model == "Quadratic"){
+            myplot <- myplot +
+              geom_line(aes(y = fit), size = 1)
+              
+         #Cubic
+        } else if(input$model == "Cubic"){
+            myplot <- myplot +
+              geom_line(aes(y = fit), size = 1)
+        
+        #Smoother
+        } else if(input$model == "Smoother"){
+          myplot <- myplot +
+            stat_smooth(se = FALSE)
+        }     
+      }
+    }
      
-   
     return(myplot)
   
   })
- 
  
  
  
@@ -315,7 +474,11 @@ server <- function(input, output,session) {
    
    #Reactive Data
    plotData <- plotDataR()
+   
+   #Require
+   req(input$groupID)
   
+   
    #Setting Up
    XVariable <- plotData %>% pull(input$xvar)
    YVariable <- plotData %>% pull(input$yvar)
@@ -338,7 +501,7 @@ server <- function(input, output,session) {
    
         } else if(input$model == "Quadratic"){
           myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + ColorVariable)
-          #myModel <- lm(YVariable ~ poly(XVariable, 2, raw = TRUE))
+       
      
         } else if(input$model == "Cubic"){
            myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + I(XVariable^3) + ColorVariable)
@@ -365,7 +528,7 @@ server <- function(input, output,session) {
              
            } else if(input$model == "Quadratic"){
              myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + ColorVariable + FacetVariable)
-             #myModel <- lm(YVariable ~ poly(XVariable, 2, raw = TRUE))
+            
              
            } else if(input$model == "Cubic"){
              myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + I(XVariable^3) + ColorVariable + FacetVariable)
@@ -389,16 +552,21 @@ server <- function(input, output,session) {
          if(input$model %in% c("Linear", "Quadratic", "Cubic")){
            
            if(input$model == "Linear"){
-             myModel <- lm(YVariable ~ (XVariable + ColorVariable)^2)
+             myModel <- lm(YVariable ~ (XVariable + ColorVariable + XVariable*ColorVariable))
              
            } else if(input$model == "Quadratic"){
-             myModel <- lm(YVariable ~ (XVariable + I(XVariable^2) + ColorVariable)^2)
-             #myModel <- lm(YVariable ~ poly(XVariable, 2, raw = TRUE))
+            
+             myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + ColorVariable + XVariable*ColorVariable +
+                                          I(XVariable^2) * ColorVariable)
+             #myModel <- lm(YVariable ~ (XVariable + I(XVariable^2) + ColorVariable)^2)
+      
              
            } else if(input$model == "Cubic"){
-             myModel <- lm(YVariable ~ (XVariable + I(XVariable^2) + I(XVariable^3) + ColorVariable)^2)
+             myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + I(XVariable^3) + ColorVariable +
+                                          XVariable*ColorVariable +  I(XVariable^2)*ColorVariable +
+                                          I(XVariable^3)*ColorVariable)
            }
-           return(summary(myModel))
+             return(summary(myModel))
            
            #Smoother model is selected
          } else if(input$model == "Smoother"){
@@ -416,14 +584,22 @@ server <- function(input, output,session) {
          if(input$model %in% c("Linear", "Quadratic", "Cubic")){
            
            if(input$model == "Linear"){
-             myModel <- lm(YVariable ~ (XVariable + ColorVariable + FacetVariable)^2)
+             myModel <- lm(YVariable ~ XVariable + ColorVariable + FacetVariable + XVariable*ColorVariable +
+                             XVariable*FacetVariable + ColorVariable*FacetVariable)
              
            } else if(input$model == "Quadratic"){
-             myModel <- lm(YVariable ~ (XVariable + I(XVariable^2) + ColorVariable + FacetVariable)^2)
-             #myModel <- lm(YVariable ~ poly(XVariable, 2, raw = TRUE))
+             myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + ColorVariable + FacetVariable +
+                             XVariable*ColorVariable + XVariable*FacetVariable +
+                             I(XVariable^2)*ColorVariable + I(XVariable^2)*FacetVariable +
+                             ColorVariable*FacetVariable)
+          
              
            } else if(input$model == "Cubic"){
-             myModel <- lm(YVariable ~ (XVariable + I(XVariable^2) + I(XVariable^3) + ColorVariable + FacetVariable)^2)
+             myModel <- lm(YVariable ~ XVariable + I(XVariable^2) + I(XVariable^3) + ColorVariable + FacetVariable +
+                             XVariable*ColorVariable + XVariable*FacetVariable +
+                             I(XVariable^2)*ColorVariable + I(XVariable^2)*FacetVariable +
+                             I(XVariable^3)*ColorVariable + I(XVariable^3)*FacetVariable +
+                             ColorVariable*FacetVariable)
            }
            return(summary(myModel))
            
@@ -442,11 +618,7 @@ server <- function(input, output,session) {
   }
 })
   
-
  
- 
-
-
   #Download Data
   output$downloadData <- downloadHandler(
     filename = function() {
@@ -455,9 +627,9 @@ server <- function(input, output,session) {
     content = function(con) {
       write.csv(plotDataR(), con)
   })
-  
+ 
+#Closes server   
 }
 
 #Running Shiny App
 shinyApp(ui = ui, server = server)
-
