@@ -82,7 +82,7 @@ all_groups <- sort(unique(data.all$GroupID))
 ui <- fluidPage(
   theme = shinytheme("journal"),
   
-  titlePanel("Farmer Data Visualizations"),
+  titlePanel("Farmers Data Visualizations"),
   
   sidebarLayout(
     sidebarPanel(
