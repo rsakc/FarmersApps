@@ -479,6 +479,9 @@ server <- function(input, output,session) {
    req(input$groupID)
   
    
+   #There has to be data
+   if(nrow(plotData) > 0){
+   
    #Setting Up
    XVariable <- plotData %>% pull(input$xvar)
    YVariable <- plotData %>% pull(input$yvar)
@@ -616,6 +619,9 @@ server <- function(input, output,session) {
      myModel <- ""
      return(invisible(myModel))
   }
+   
+}
+
 })
   
  
