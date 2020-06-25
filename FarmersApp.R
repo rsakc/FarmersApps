@@ -232,7 +232,7 @@ server <- function(input, output,session) {
   })
   
   
-  
+   
   ##Creating Visualization
   output$Plot <- renderPlot({
     
@@ -367,7 +367,7 @@ server <- function(input, output,session) {
         myModel <- ""
       }
       
-    }
+    
       
     
       #Default Plot
@@ -507,6 +507,8 @@ server <- function(input, output,session) {
       
       return(myplot)
       
+      
+    }
   })
   
   
