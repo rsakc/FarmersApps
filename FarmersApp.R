@@ -6,7 +6,7 @@ library(readr)
 library(ggplot2)
 library(gdata)
 library(dplyr)
- 
+    
 #Farmers Data
 data.all <-read.csv("https://www.stat2games.sites.grinnell.edu/data/farmer/getdata.php") 
 
