@@ -146,7 +146,11 @@ ui <- fluidPage(
       uiOutput(outputId = "limits"),
       
       
-      downloadButton('downloadData', label = "Farmer Data")
+      downloadButton('downloadData', label = "Farmer Data"),
+      
+      a(h5("Instructor Details"),
+        href="https://stat2labs.sites.grinnell.edu/farmer.html", 
+        align="left", target = "_blank")
       
     ),
     
