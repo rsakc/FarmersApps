@@ -1,4 +1,4 @@
-#Last Updated on July 15 2020
+#Last Updated on July 23 2020
 
 #Loading Libraries
 library(shiny)
@@ -68,10 +68,6 @@ for(i in 1:nrow(data.all)){
 
 #Ordering Categorical Nitrate Column
 data.all$Nitrate <- factor(data.all$Nitrate, levels = c("Low", "Medium", "High"))
-
-
-#Rounding Yield (Ask Kuiper)
-#data.all$Yield <- round(data.all$Yield, 0)
 
 
 #Creating Y Variable Columns
@@ -164,8 +160,6 @@ ui <- fluidPage(
     mainPanel(
       plotOutput(outputId = "Plot"),
       verbatimTextOutput(outputId = "Model_Out"))
-    
-    
   ))
 
 
@@ -381,8 +375,6 @@ server <- function(input, output,session) {
       }
       
     
-      
-    
       #Default Plot
       myplot <- ggplot(data = plotData, aes_string(x = input$xvar, y = input$yvar, color = input$color)) +
         geom_point() +
@@ -518,6 +510,7 @@ server <- function(input, output,session) {
      }
     }    
       
+      #Returning visual
       return(myplot)
       
       
@@ -683,7 +676,8 @@ server <- function(input, output,session) {
       write.csv(plotDataR(), con)
     })
   
-  #Closes server   
+
+#Closes server   
 }
 
 #Running Shiny App
